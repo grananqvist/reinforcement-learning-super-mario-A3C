@@ -3,6 +3,9 @@ import numpy as np
 
 GLOBAL_SCOPE = 'global'
 
+# constant for actor loss
+BETA = 0.01
+
 class A3CNetwork(object):
 
     def __init__(self, state_n, action_n, scope):
@@ -74,7 +77,7 @@ class A3CNetwork(object):
 
             # define the Actor network (policy)
             with tf.variable_scope('actor'):
-                self.actor_layer1 = tf.layers.dense(
+                self.actor_out = tf.layers.dense(
                     self.layer4_out,
                     action_n,
                     activation=tf.nn.softmax,
@@ -84,7 +87,7 @@ class A3CNetwork(object):
                 
             # define the Critic network (value)
             with tf.variable_scope('critic'):
-                self.critic_layer1 = tf.layers.dense(
+                self.critic_out = tf.layers.dense(
                     self.layer4_out,
                     1,
                     activation=None,
@@ -95,7 +98,29 @@ class A3CNetwork(object):
             if scope != GLOBAL_SCOPE:
                 
                 with tf.variable_scope('loss'):
-                    pass
+
+                    # the batch of rewards recieved
+                    self.reward = tf.placeholder(tf.float32, shape=[None], name='R')
+
+                    # TODO: clip to avoid 0 ?
+                    # calculate H(pi), the policy entropy
+                    policy_entropy = -1 * tf.reduce_sum(self.actor_out * tf.log(self.actor_out))
+
+                    # TODO: onehot policy?
+
+                    self.advantage = tf.placeholder(tf.float32, shape=[None])
+
+                    actor_loss = -1 * tf.reduce_sum(tf.log(self.actor_out) * self.advantage) \
+                            + BETA * policy_entropy
+
+                    # loss function for Critic network
+                    # multiplied by 1/2 because the learning rate is half
+                    # of the Actor learning rate
+                    critic_loss = 1/2 * tf.reduce_mean(tf.square(
+                         self.reward - self.critic_out
+                    ))
+
+                    self.loss = critic_loss + actor_loss
 
 
     def __new_conv_layer(self, inputs, input_channels_n, filter_size, feature_maps_n, stride, name):
@@ -145,7 +170,7 @@ class A3CNetwork(object):
 
 if __name__ == '__main__':
     tf.reset_default_graph()
-    a3cnet = A3CNetwork(256*256, 6, 'global')
+    a3cnet = A3CNetwork(256*256, 6, 'worker')
     print(a3cnet.layer1_conv)
     print(a3cnet.layer2_conv)
     print(a3cnet.layer2_out)
@@ -153,5 +178,5 @@ if __name__ == '__main__':
     print(a3cnet.layer4_lstm_state)
     print(a3cnet.layer4_lstm_output)
     print(a3cnet.layer4_out)
-    print(a3cnet.actor_layer1)
-    print(a3cnet.critic_layer1)
+    print(a3cnet.actor_out)
+    print(a3cnet.critic_out)
