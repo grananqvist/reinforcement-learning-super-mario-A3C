@@ -8,12 +8,19 @@ BETA = 0.01
 
 class A3CNetwork(object):
 
-    def __init__(self, state_n, action_n, scope):
+    def __init__(self, state_shape, action_n, scope):
         
+        self.action_n = action_n
+
         # worker-specific scope / 'global' scope
         with tf.variable_scope(scope):
             # state input placeholder
-            self.s = tf.placeholder(tf.float32, shape=[None, 256, 256, 3], name='S')
+            state_maps = state_shape[2] if state_shape[2] else 1
+            self.s = tf.placeholder(
+                tf.float32, 
+                shape=[None, state_shape[0], state_shape[1], state_maps],
+                name='S'
+            )
 
             # first part of network: CNN
             with tf.variable_scope('cnn'):
@@ -57,19 +64,19 @@ class A3CNetwork(object):
 
             with tf.variable_scope('rnn'):
                 # create lstm cell to use for RNN
-                lstm_cell = tf.contrib.rnn.BasicLSTMCell(256,state_is_tuple=True)
+                self.lstm_cell = tf.contrib.rnn.BasicLSTMCell(256,state_is_tuple=True)
 
-                initial_c = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c])
-                initial_h = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h])
+                self.lstm_c = tf.placeholder(tf.float32, [1, self.lstm_cell.state_size.c])
+                self.lstm_h = tf.placeholder(tf.float32, [1, self.lstm_cell.state_size.h])
                 initial_state= tf.contrib.rnn.LSTMStateTuple(
-                    initial_c,
-                    initial_h
+                    self.lstm_c,
+                    self.lstm_h
                 )
 
                 # TODO: sequence_length
                 # Create RNN layer. Also, save lstm state for next training iteration
                 self.layer4_lstm_output, self.layer4_lstm_state = tf.nn.dynamic_rnn(
-                    lstm_cell, self.layer3_out, initial_state=initial_state,
+                    self.lstm_cell, self.layer3_out, initial_state=initial_state,
                     time_major=False
                 )
 
@@ -100,25 +107,42 @@ class A3CNetwork(object):
                 with tf.variable_scope('loss'):
 
                     # the batch of rewards recieved
-                    self.reward = tf.placeholder(tf.float32, shape=[None], name='R')
+                    self.reward = tf.placeholder(tf.float32, shape=[None, 1], name='R')
 
-                    # TODO: clip to avoid 0 ?
-                    # calculate H(pi), the policy entropy
-                    policy_entropy = -1 * tf.reduce_sum(self.actor_out * tf.log(self.actor_out))
+                    # the action taken
+                    self.action_taken = tf.placeholder(tf.float32, shape=[None, action_n])
 
-                    # TODO: onehot policy?
+                    # the log probability of taking action i given state. log(pi(a_i|s_i))
+                    # The probability is extracted by multiplying by the one hot action vector
+                    # add small number (1e-10) to prevent greedy epsilon policy from choosing
+                    # and actin of probability zero. produces NaN otherwise
+                    logp = tf.log(tf.reduce_sum(
+                        self.actor_out * self.action_taken, axis=1, keep_dims=True
+                    ) + 1e-10)
+                    print('logp')
+                    print(logp)
 
-                    self.advantage = tf.placeholder(tf.float32, shape=[None])
+                    self.advantage = self.reward - self.critic_out
+                    print('advantage')
+                    print(self.advantage)
 
-                    actor_loss = -1 * tf.reduce_sum(tf.log(self.actor_out) * self.advantage) \
+                    # calculate H(pi), the policy entropy. Add small number here aswell for the
+                    # same reason as for logp
+                    policy_entropy = -1 * tf.reduce_mean(self.actor_out * tf.log(self.actor_out + 1e-10))
+                    print('entropy')
+                    print(policy_entropy)
+
+                    actor_loss = -1 * tf.reduce_mean(logp * self.advantage) \
                             + BETA * policy_entropy
+                    print('actor loss')
+                    print(actor_loss)
 
                     # loss function for Critic network
                     # multiplied by 1/2 because the learning rate is half
                     # of the Actor learning rate
-                    critic_loss = 1/2 * tf.reduce_mean(tf.square(
-                         self.reward - self.critic_out
-                    ))
+                    critic_loss = 1/2 * tf.reduce_mean(tf.square(self.advantage))
+                    print('critic_loss')
+                    print(critic_loss)
 
                     self.loss = critic_loss + actor_loss
 
@@ -160,11 +184,18 @@ class A3CNetwork(object):
         """ extract weights from the global network and copy to agent """
         pass
 
-    def epsilon_greedy_action(self):
+    # TODO: is epsilon greedy needed?
+    def epsilon_greedy_action(self, sess, s, epsilon):
         """ perform action with exploration """
-        pass
+        if np.random.uniform() < epsilon:
+            action = np.zeros(self.action_n,1)
+            action[np.random.randint(0, len(self.action_n))] = 1
+        else:
+            action = self.sample_action(s)
 
-    def action(self):
+        return action
+
+    def sample_action(self, sess, s):
         """ perform optimal action """
         pass
 
