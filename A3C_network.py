@@ -11,8 +11,9 @@ class A3CNetwork(object):
     def __init__(self, state_shape, action_n, scope):
         
         self.action_n = action_n
+        self.scope = scope
 
-        # worker-specific scope / 'global' scope
+        # agent-specific scope / 'global' scope
         with tf.variable_scope(scope):
             # state input placeholder
             state_maps = state_shape[2] if state_shape[2] else 1
@@ -101,7 +102,7 @@ class A3CNetwork(object):
                     name='critic_dense1'
                 )
 
-            # only define loss functions for worker networks
+            # only define loss functions for agent networks
             if scope != GLOBAL_SCOPE:
                 
                 with tf.variable_scope('loss'):
@@ -182,7 +183,20 @@ class A3CNetwork(object):
 
     def copy_global(self):
         """ extract weights from the global network and copy to agent """
-        pass
+
+        # get trainable variables for agent
+        agent_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
+
+        # get trainable variables for global network
+        global_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, GLOBAL_SCOPE)
+
+        # loop over weights and copy the global over to the agent
+        # return the operations
+        print('copying global')
+        return [ agent_w.assign(global_w) for agent_w, global_w 
+                in zip(agent_weights, global_weights)]
+        
+
 
     # TODO: is epsilon greedy needed?
     def epsilon_greedy_action(self, sess, s, epsilon):
@@ -201,7 +215,7 @@ class A3CNetwork(object):
 
 if __name__ == '__main__':
     tf.reset_default_graph()
-    a3cnet = A3CNetwork(256*256, 6, 'worker')
+    a3cnet = A3CNetwork(256*256, 6, 'agent')
     print(a3cnet.layer1_conv)
     print(a3cnet.layer2_conv)
     print(a3cnet.layer2_out)

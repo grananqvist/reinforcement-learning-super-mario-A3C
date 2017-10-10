@@ -12,10 +12,10 @@ GLOBAL_UPDATE_INTERVAL = 30
 
 class Agent(object):
 
-    def __init__(self, level_name, worker_name, episode_count):
+    def __init__(self, level_name,agent_name, episode_count):
 
-        # unique worker name
-        self.name = worker_name
+        # unique agent name
+        self.name = agent_name
 
         # number of total global episodes 
         self.episode_count = episode_count
@@ -27,7 +27,7 @@ class Agent(object):
         self.action_n = self.env.action_space.shape
 
         # initiate A3C network
-        self.a3cnet = A3CNetwork(self.state_n, self.action_n, worker_name)
+        self.a3cnet = A3CNetwork(self.state_n, self.action_n, agent_name)
 
 
 
@@ -105,14 +105,15 @@ class Agent(object):
                     # update global net
                     print('value: ' + str(value_s))
 
+                    state_buffer, action_buffer, reward_buffer = [], [], []
+
+                    # copy global net to agent
+                    sess.run([self.a3cnet.copy_global()])
+
                 s = s_
 
             break
 
-        """ TRAIN ONE STEP LOOP """
-
-        """ sample action from network """
-        """ perform action, save state & reward to buffer """
 
         """ if should update global network
             calculate discounted rewards
@@ -133,7 +134,8 @@ if __name__ == '__main__':
         name='episode_count',
         trainable=False
     )
-    agent = Agent('SuperMarioBros-1-1-v0', 'worker_0', episode_count)
+    agent = Agent('SuperMarioBros-1-1-v0', 'agent_0', episode_count)
+    globalz = A3CNetwork((224,256,3), 6, 'global')
 
     with tf.Session() as sess:
         coord = tf.train.Coordinator()
