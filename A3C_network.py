@@ -147,6 +147,15 @@ class A3CNetwork(object):
 
                     self.loss = critic_loss + actor_loss
 
+                    # init an optimizer to use when training
+                    self.optimizer = tf.train.AdamOptimizer()
+
+                    # init operation for updating global network
+                    self._init_sync_global_network()
+
+                    # init operation for syncing this network with the global network
+                    self._init_copy_global_network()
+
 
     def __new_conv_layer(self, inputs, input_channels_n, filter_size, feature_maps_n, stride, name):
         """ generate a new convolutional layer without any pooling attached
@@ -177,11 +186,27 @@ class A3CNetwork(object):
 
         return layer
 
-    def sync_global_network(self):
+    def _init_sync_global_network(self):
         """ use buffers of data from agent to update the global network """
-        pass
 
-    def copy_global(self):
+        # get trainable variables for agent
+        agent_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
+        
+        # get the gradients of the agent's trainable variables
+        agent_gradients = np.array(self.optimizer.compute_gradients(self.loss, agent_weights))[:,0]
+
+        # get trainable variables for global network
+        global_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, GLOBAL_SCOPE)
+
+        print('agent gradients')
+        for asdf in zip(agent_gradients, global_weights):
+            print(asdf)
+
+        # minimize loss
+        self.sync_global_network = self.optimizer.apply_gradients(zip(agent_gradients, global_weights))
+
+
+    def _init_copy_global_network(self):
         """ extract weights from the global network and copy to agent """
 
         # get trainable variables for agent
@@ -193,7 +218,7 @@ class A3CNetwork(object):
         # loop over weights and copy the global over to the agent
         # return the operations
         print('copying global')
-        return [ agent_w.assign(global_w) for agent_w, global_w 
+        self.copy_global_network = [ agent_w.assign(global_w) for agent_w, global_w 
                 in zip(agent_weights, global_weights)]
         
 
