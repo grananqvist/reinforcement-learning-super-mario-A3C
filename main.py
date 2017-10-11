@@ -5,8 +5,8 @@ import tensorflow as tf
 
 def main():
     """ the main function """
-    LEVEL_NAME = 'meta-SuperMarioBros-v0'
-    NUMBER_OF_AGENTS = 4
+    LEVEL_NAME = 'Pong-v0'
+    NUMBER_OF_AGENTS = 1
     EPISODES = 5
 
     episode_count = tf.Variable(
@@ -16,7 +16,7 @@ def main():
         trainable=False
     )
 
-    globalz = A3CNetwork((224,256,3), 6, 'global')
+    globalz = A3CNetwork((210,160,3), 6, 'global')
 
     """ create an array of agents"""
     agents = []

@@ -22,10 +22,10 @@ class Agent(object):
         self.episode_count = episode_count
 
         # create super mario environment
-        self.env = gym.make(level_name)
+        self.env = gym.make(level_name).unwrapped
         #self.env.configure(lock=Lock())
         self.state_n = self.env.observation_space.shape
-        self.action_n = self.env.action_space.shape
+        self.action_n = self.env.action_space.n
 
         # initiate A3C network
         self.a3cnet = A3CNetwork(self.state_n, self.action_n, agent_name)
@@ -37,7 +37,6 @@ class Agent(object):
 
         step_counter = 1
 
-        s = self.env.reset()
 
         # episode loop. Continue playing the game while should not stop
         while not coord.should_stop():
@@ -45,9 +44,13 @@ class Agent(object):
             # reset buffers
             action_buffer, state_buffer, reward_buffer = [], [], []
 
+            s = self.env.reset()
+
+            done = False
+
             # reset env by changing level. env.reset doesn't work for super mario
-            self.env.change_level(new_level=0)
-            s, _, done, _ = self.env.step(self.env.action_space.sample()) 
+            #self.env.change_level(new_level=0)
+            #s, _, done, _ = self.env.step(self.env.action_space.sample()) 
 
             # reset LSTM memory
             lstm_c = np.zeros((1, self.a3cnet.lstm_cell.state_size.c))
@@ -80,7 +83,7 @@ class Agent(object):
                 action[np.random.choice(range(policy.shape[1]), p=policy[0])] = 1
 
                 # take a step in env with action
-                s_, r, done, info = self.env.step(action)
+                s_, r, done, info = self.env.step(np.argmax(action))
 
                 # observe results and store in buffers
                 state_buffer.append(s)
