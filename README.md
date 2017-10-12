@@ -3,9 +3,9 @@
 Learning to play supermario using A3C algorithm
 
 Todo:
-- [ ] Emulator speed up
 - [ ] Possibly train without gui
+- [ ] Implement Tensorboard
+- [ ] Save model
 - [ ] Train on Pong
 - [ ] Train on tiles
-- [ ] Reward engineering
-- [ ] Preprocessing Mario pixels
+- [X] Reward engineering

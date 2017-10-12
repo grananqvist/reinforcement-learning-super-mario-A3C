@@ -46,8 +46,9 @@ class Agent(object):
             action_buffer, state_buffer, reward_buffer = [], [], []
 
             # reset env by changing level. env.reset doesn't work for super mario
-            self.env.change_level(new_level=0)
+            self.env.change_level(new_level=2)
             s, _, done, _ = self.env.step(self.env.action_space.sample()) 
+            prev_score = 0
 
             # reset LSTM memory
             lstm_c = np.zeros((1, self.a3cnet.lstm_cell.state_size.c))
@@ -84,10 +85,18 @@ class Agent(object):
                 action_discrete_onehot = np.zeros(self.action_n, dtype=int)
                 action_discrete_onehot[action_discrete]
                 action = discrete_to_mutli_action(action_discrete)
-                print(action)
 
                 # take a step in env with action
                 s_, r, done, info = self.env.step(action)
+
+                """ reward modifications """
+
+                # -20 reward for mario dying
+                if done and info['life'] == 0:
+                    r -= 20
+
+                r += np.min([15, 0.035 * (info['score'] - prev_score)])
+                
 
                 # observe results and store in buffers
                 state_buffer.append(s)
@@ -99,7 +108,7 @@ class Agent(object):
                 if step_counter % GLOBAL_UPDATE_INTERVAL == 0 or done:
 
                     """ debug """
-                    print('reward for batch: ' + str(total_reward))
+                    print(str(self.name) + ' reward for batch: ' + str(total_reward))
                     total_reward = 0
                     """ debug """
 
@@ -116,7 +125,6 @@ class Agent(object):
                         )[0][0]
 
                     # update global net
-                    print('value: ' + str(value_s))
                     print('buffer size: ' + str(len(state_buffer)))
 
                     # calculate discounted rewards all the way to current state s
@@ -152,6 +160,7 @@ class Agent(object):
 
 
                 s = s_
+                prev_score = info['score']
                 step_counter += 1
 
 

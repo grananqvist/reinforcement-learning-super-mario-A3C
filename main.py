@@ -5,7 +5,7 @@ import tensorflow as tf
 
 def main():
     """ the main function """
-    LEVEL_NAME = 'meta-SuperMarioBros-Tiles-v0'
+    LEVEL_NAME = 'meta-SuperMarioBros-v0'
     NUMBER_OF_AGENTS = 4
     EPISODES = 5
 
