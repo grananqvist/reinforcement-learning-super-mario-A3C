@@ -1,5 +1,9 @@
 import numpy as np
 
+def preprocess_state(state):
+    """ Normalize the input values to be between 0 and 1 """
+    return np.multiply(state, 1/np.max(state))
+
 def discrete_to_mutli_action(action_discrete):
     """ sfdsdfs """
 

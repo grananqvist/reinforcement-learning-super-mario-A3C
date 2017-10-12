@@ -3,7 +3,7 @@ import tensorflow as tf
 import gym
 from multiprocessing import Lock
 from A3C_network import A3CNetwork
-from action_space import discrete_to_mutli_action
+from action_space import discrete_to_mutli_action, preprocess_state
 
 # discount factor
 GAMMA = 0.99
@@ -48,6 +48,7 @@ class Agent(object):
             # reset env by changing level. env.reset doesn't work for super mario
             self.env.change_level(new_level=2)
             s, _, done, _ = self.env.step(self.env.action_space.sample()) 
+            s = preprocess_state(s)
             prev_score = 0
 
             # reset LSTM memory
@@ -88,6 +89,7 @@ class Agent(object):
 
                 # take a step in env with action
                 s_, r, done, info = self.env.step(action)
+                s_ = preprocess_state(s_)
 
                 """ reward modifications """
 
