@@ -12,6 +12,7 @@ class A3CNetwork(object):
         
         self.action_n = action_n
         self.scope = scope
+        print('creating network with actions: ' + str(action_n))
 
         # agent-specific scope / 'global' scope
         with tf.variable_scope(scope):
@@ -111,7 +112,7 @@ class A3CNetwork(object):
                     self.reward = tf.placeholder(tf.float32, shape=[None, 1], name='R')
 
                     # the action taken
-                    self.action_taken = tf.placeholder(tf.float32, shape=[None, action_n])
+                    self.action_taken = tf.placeholder(tf.float32, shape=[None, self.action_n], name='Action')
 
                     # the log probability of taking action i given state. log(pi(a_i|s_i))
                     # The probability is extracted by multiplying by the one hot action vector
@@ -134,7 +135,7 @@ class A3CNetwork(object):
                     print(policy_entropy)
 
                     actor_loss = -1 * tf.reduce_mean(logp * self.advantage) \
-                            + BETA * policy_entropy
+                            - BETA * policy_entropy
                     print('actor loss')
                     print(actor_loss)
 
@@ -193,17 +194,19 @@ class A3CNetwork(object):
         agent_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
         
         # get the gradients of the agent's trainable variables
-        agent_gradients = np.array(self.optimizer.compute_gradients(self.loss, agent_weights))[:,0]
+        #agent_gradients = np.array(self.optimizer.compute_gradients(self.loss, agent_weights))[:,0]
+        agent_gradients = tf.gradients(self.loss, agent_weights)
 
         # get trainable variables for global network
         global_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, GLOBAL_SCOPE)
 
+        clipped_gradients, _ = tf.clip_by_global_norm(agent_gradients,40.0)
         print('agent gradients')
         for asdf in zip(agent_gradients, global_weights):
             print(asdf)
 
         # minimize loss
-        self.sync_global_network = self.optimizer.apply_gradients(zip(agent_gradients, global_weights))
+        self.sync_global_network = self.optimizer.apply_gradients(zip(clipped_gradients, global_weights))
 
 
     def _init_copy_global_network(self):

@@ -1,9 +1,9 @@
 import numpy as np
 import tensorflow as tf
 import gym
-from time import sleep
 from multiprocessing import Lock
 from A3C_network import A3CNetwork
+from action_space import discrete_to_mutli_action
 
 # discount factor
 GAMMA = 0.99
@@ -25,7 +25,7 @@ class Agent(object):
         self.env = gym.make(level_name)
         #self.env.configure(lock=Lock())
         self.state_n = self.env.observation_space.shape
-        self.action_n = self.env.action_space.shape
+        self.action_n = 14 #self.env.action_space.shape
 
         # initiate A3C network
         self.a3cnet = A3CNetwork(self.state_n, self.action_n, agent_name)
@@ -76,15 +76,22 @@ class Agent(object):
                 
                 # sample action from the policy distribution at the
                 # output of the Actor network
-                action = np.zeros(policy.shape[1], dtype=int)
-                action[np.random.choice(range(policy.shape[1]), p=policy[0])] = 1
+                #action = np.zeros(policy.shape[1], dtype=int)
+                #action = np.array([np.random.choice(2, p=[1-policy[0,i], policy[0,i]]) 
+                #    for i in range(policy.shape[1])])
+                #action[np.random.choice(range(policy.shape[1]), p=policy[0])] = 1
+                action_discrete = np.random.choice(range(policy.shape[1]), p=policy[0])
+                action_discrete_onehot = np.zeros(self.action_n, dtype=int)
+                action_discrete_onehot[action_discrete]
+                action = discrete_to_mutli_action(action_discrete)
+                print(action)
 
                 # take a step in env with action
                 s_, r, done, info = self.env.step(action)
 
                 # observe results and store in buffers
                 state_buffer.append(s)
-                action_buffer.append(action)
+                action_buffer.append(action_discrete_onehot)
                 reward_buffer.append(r)
                 
                 total_reward += r
