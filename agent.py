@@ -11,9 +11,18 @@ GAMMA = 0.99
 # number of iterations to store in buffers before updating global net
 GLOBAL_UPDATE_INTERVAL = 30
 
+# where to periodically save the model
+MODEL_PATH = './mario-pixel-models'
+
 class Agent(object):
 
     def __init__(self, level_name,agent_name, episode_count):
+
+        # operation for increasing the global episode count
+        self.episode_count_inc = tf.assign(episode_count, episode_count + 1)
+
+        # save global episode count
+        self.episode_count = episode_count
 
         # unique agent name
         self.name = agent_name
@@ -30,7 +39,7 @@ class Agent(object):
         # initiate A3C network
         self.a3cnet = A3CNetwork(self.state_n, self.action_n, agent_name)
 
-    def train(self, sess, coord):
+    def train(self, sess, coord, saver):
         """ performs the main training loop """
 
         print(self.name + ' is running')
@@ -60,6 +69,18 @@ class Agent(object):
 
             # keep track of total reward for entire episode
             total_reward = 0
+
+            # increase the episode counter
+            sess.run([self.episode_count_inc])
+
+            # print current global episode count
+            global_ep = sess.run([self.episode_count])[0]
+            print('%s: episode nr: %i' % (self.name, global_ep))
+
+            # save model every 5 global episode
+            if global_ep % 4 == 0:
+                saver.save(sess, '%s/model-%i.ckpt' % (MODEL_PATH, global_ep))
+                print('saved model at episode %i' % global_ep)
 
             # state step loop
             while not done:
@@ -94,7 +115,7 @@ class Agent(object):
                 """ reward modifications """
 
                 # -20 reward for mario dying
-                if done and info['life'] == 0:
+                if done and 'life' in info and info['life'] == 0:
                     r -= 20
 
                 r += np.min([15, 0.035 * (info['score'] - prev_score)])
@@ -166,11 +187,6 @@ class Agent(object):
                 step_counter += 1
 
 
-
-        """ if done
-          calculate some metrics for tensorboard
-          break the TRAIN ONE STEP LOOP to start another episode
-        """
 
 if __name__ == '__main__':
     episode_count = tf.Variable(
