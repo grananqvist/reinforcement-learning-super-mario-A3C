@@ -7,7 +7,7 @@ def main():
     """ the main function """
     LEVEL_NAME = 'meta-SuperMarioBros-v0'
     NUMBER_OF_AGENTS = 4
-    EPISODES = 5
+    global_shape = (176,256,3)
 
     episode_count = tf.Variable(
         0, 
@@ -16,12 +16,12 @@ def main():
         trainable=False
     )
 
-    globalz = A3CNetwork((224,256,3), 14, 'global')
+    globalz = A3CNetwork(global_shape, 14, 'global')
 
     """ create an array of agents"""
     agents = []
     for i in range(0,NUMBER_OF_AGENTS):
-        agents.append(Agent(LEVEL_NAME, 'agent_' + str(i), episode_count))
+        agents.append(Agent(LEVEL_NAME, global_shape, 'agent_' + str(i), episode_count))
 
     """ run all agents in separate threads """
     agent_threads = []

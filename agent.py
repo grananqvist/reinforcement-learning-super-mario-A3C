@@ -3,7 +3,8 @@ import tensorflow as tf
 import gym
 from multiprocessing import Lock
 from A3C_network import A3CNetwork
-from action_space import discrete_to_mutli_action, preprocess_state
+from helper_functions import discrete_to_multi_action, preprocess_state
+from PIL import Image
 
 # discount factor
 GAMMA = 0.99
@@ -13,7 +14,7 @@ GLOBAL_UPDATE_INTERVAL = 30
 
 class Agent(object):
 
-    def __init__(self, level_name,agent_name, episode_count):
+    def __init__(self, level_name, global_shape, agent_name, episode_count):
 
         # unique agent name
         self.name = agent_name
@@ -24,8 +25,9 @@ class Agent(object):
         # create super mario environment
         self.env = gym.make(level_name)
         #self.env.configure(lock=Lock())
-        self.state_n = self.env.observation_space.shape
+        self.state_n = global_shape #self.env.observation_space.shape
         self.action_n = 14 #self.env.action_space.shape
+        print('state dimension: ' + str(self.state_n))
 
         # initiate A3C network
         self.a3cnet = A3CNetwork(self.state_n, self.action_n, agent_name)
@@ -85,10 +87,16 @@ class Agent(object):
                 action_discrete = np.random.choice(range(policy.shape[1]), p=policy[0])
                 action_discrete_onehot = np.zeros(self.action_n, dtype=int)
                 action_discrete_onehot[action_discrete]
-                action = discrete_to_mutli_action(action_discrete)
+                action = discrete_to_multi_action(action_discrete)
 
                 # take a step in env with action
                 s_, r, done, info = self.env.step(action)
+
+                # Debug print image of state one time
+                #if step_counter == GLOBAL_UPDATE_INTERVAL:
+                    #image = Image.fromarray(s_)
+                    #image.save('screenshot.png')
+
                 s_ = preprocess_state(s_)
 
                 """ reward modifications """
