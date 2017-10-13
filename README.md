@@ -6,6 +6,7 @@ Todo:
 - [ ] Possibly train without gui
 - [ ] Implement Tensorboard
 - [ ] Save model
+- [ ] crop image
 - [ ] Train on Pong
 - [ ] Train on tiles
 - [X] Reward engineering
