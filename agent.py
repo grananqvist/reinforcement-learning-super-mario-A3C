@@ -13,17 +13,21 @@ GAMMA = 0.99
 GLOBAL_UPDATE_INTERVAL = 30
 
 # where to periodically save the model
-MODEL_PATH = './mario-pixel-models'
+SUMMARY_FOLDER = 'mario-pixel-models'
+MODEL_PATH = './models/' + SUMMARY_FOLDER
 
 class Agent(object):
 
-    def __init__(self, level_name, global_shape, agent_name, episode_count):
+    def __init__(self, level_name, global_shape, agent_name, episode_count, global_writer):
+
+        # file writer for tensorboard
+        self.writer = tf.summary.FileWriter('./logs/%s/%s' % (SUMMARY_FOLDER, agent_name))
+
+        # global file writer to write episode metrics
+        self.global_writer = global_writer
 
         # operation for increasing the global episode count
         self.episode_count_inc = tf.assign(episode_count, episode_count + 1)
-
-        # save global episode count
-        self.episode_count = episode_count
 
         # unique agent name
         self.name = agent_name
@@ -36,10 +40,10 @@ class Agent(object):
         #self.env.configure(lock=Lock())
         self.state_n = global_shape #self.env.observation_space.shape
         self.action_n = 14 #self.env.action_space.shape
-        print('state dimension: ' + str(self.state_n))
 
         # initiate A3C network
         self.a3cnet = A3CNetwork(self.state_n, self.action_n, agent_name)
+
 
     def train(self, sess, coord, saver):
         """ performs the main training loop """
@@ -70,19 +74,9 @@ class Agent(object):
             self.batch_lstm_h = lstm_h
 
             # keep track of total reward for entire episode
-            total_reward = 0
+            total_reward = 0 #TODO only for debug
+            episode_reward = 0
 
-            # increase the episode counter
-            sess.run([self.episode_count_inc])
-
-            # print current global episode count
-            global_ep = sess.run([self.episode_count])[0]
-            print('%s: episode nr: %i' % (self.name, global_ep))
-
-            # save model every 5 global episode
-            if global_ep % 4 == 0:
-                saver.save(sess, '%s/model-%i.ckpt' % (MODEL_PATH, global_ep))
-                print('saved model at episode %i' % global_ep)
 
             # state step loop
             while not done:
@@ -112,21 +106,16 @@ class Agent(object):
 
                 # take a step in env with action
                 s_, r, done, info = self.env.step(action)
-
-                # Debug print image of state one time
-                #if step_counter == GLOBAL_UPDATE_INTERVAL:
-                    #image = Image.fromarray(s_)
-                    #image.save('screenshot.png')
-
                 s_ = preprocess_state(s_)
 
                 """ reward modifications """
 
-                # -20 reward for mario dying
+                # -1 reward for mario dying
                 if done and 'life' in info and info['life'] == 0:
-                    r -= 20
+                    r -= 1
 
-                r += np.min([15, 0.035 * (info['score'] - prev_score)])
+                # maximum reward for gaining any score is currently clipped at 1
+                r += np.min([1, 0.005 * (info['score'] - prev_score)])
                 
 
                 # observe results and store in buffers
@@ -135,6 +124,7 @@ class Agent(object):
                 reward_buffer.append(r)
                 
                 total_reward += r
+                episode_reward += r
 
                 if step_counter % GLOBAL_UPDATE_INTERVAL == 0 or done:
 
@@ -168,9 +158,10 @@ class Agent(object):
                     discounted_rewards_buffer = np.array(discounted_rewards_buffer).reshape(-1,1)
 
 
-                    (self.batch_lstm_c, self.batch_lstm_h), _ = sess.run(
+                    (self.batch_lstm_c, self.batch_lstm_h), summary, _ = sess.run(
                         [
                             self.a3cnet.layer4_lstm_state, 
+                            self.a3cnet.summary_op,
                             self.a3cnet.sync_global_network
                         ],
                         feed_dict={
@@ -189,11 +180,37 @@ class Agent(object):
                     sess.run([self.a3cnet.copy_global_network])
 
 
+                    self.writer.add_summary(summary, step_counter)
 
                 s = s_
                 prev_score = info['score']
                 step_counter += 1
 
+
+
+            # increase the episode counter
+            sess.run([self.episode_count_inc])
+
+            # print current global episode count
+            global_ep = sess.run([self.episode_count])[0]
+            print('%s: episode nr: %i completed' % (self.name, global_ep))
+
+            # add distribution of weights to summary for this episode
+            summary_hist = sess.run([self.a3cnet.weights_summary_op], feed_dict={})[0]
+            print('weights:')
+            print(summary_hist)
+            self.global_writer.add_summary(summary_hist, global_ep)
+
+            # track the total reward recieved for the finished episode
+            summary = tf.Summary()
+            summary.value.add(tag='Reward', simple_value=float(episode_reward))
+            self.global_writer.add_summary(summary, global_ep)
+            self.global_writer.flush()
+
+            # save model every 5 global episode
+            if global_ep % 4 == 0:
+                saver.save(sess, '%s/model-%i.ckpt' % (MODEL_PATH, global_ep))
+                print('saved model at episode %i' % global_ep)
 
 
 if __name__ == '__main__':

@@ -130,11 +130,11 @@ class A3CNetwork(object):
 
                     # calculate H(pi), the policy entropy. Add small number here aswell for the
                     # same reason as for logp
-                    policy_entropy = -1 * tf.reduce_mean(self.actor_out * tf.log(self.actor_out + 1e-10))
+                    policy_entropy = -1 * tf.reduce_sum(self.actor_out * tf.log(self.actor_out + 1e-10))
                     print('entropy')
                     print(policy_entropy)
 
-                    actor_loss = -1 * tf.reduce_mean(logp * self.advantage) \
+                    actor_loss = -1 * tf.reduce_sum(logp * self.advantage) \
                             - BETA * policy_entropy
                     print('actor loss')
                     print(actor_loss)
@@ -142,7 +142,7 @@ class A3CNetwork(object):
                     # loss function for Critic network
                     # multiplied by 1/2 because the learning rate is half
                     # of the Actor learning rate
-                    critic_loss = 1/2 * tf.reduce_mean(tf.square(self.advantage))
+                    critic_loss = 1/4 * tf.reduce_sum(tf.square(self.advantage))
                     print('critic_loss')
                     print(critic_loss)
 
@@ -157,6 +157,18 @@ class A3CNetwork(object):
                     # init operation for syncing this network with the global network
                     self._init_copy_global_network()
 
+                # summaries for logging performance metrics to tensorboard
+
+                tf.summary.scalar(
+                    'loss', 
+                    tf.reduce_mean(self.loss), 
+                    collections=[self.scope]
+                )
+
+                 
+            self.weights_summary_op = tf.summary.merge_all(GLOBAL_SCOPE)
+            self.summary_op = tf.summary.merge_all(self.scope)
+
 
     def __new_conv_layer(self, inputs, input_channels_n, filter_size, feature_maps_n, stride, name):
         """ generate a new convolutional layer without any pooling attached
@@ -169,6 +181,10 @@ class A3CNetwork(object):
         # new filter weights and biases
         weights = tf.Variable(tf.truncated_normal(shape, stddev=0.05))
         biases = tf.Variable(tf.constant(0.05, shape=[feature_maps_n]))
+
+        if self.scope == GLOBAL_SCOPE:
+            tf.summary.histogram(name + '/W/histogram', weights, collections=[self.scope])
+            tf.summary.histogram(name + '/b/histogram', biases, collections=[self.scope])
         
         # new conv layer. stride 1, zero padding VALID
         layer = tf.nn.conv2d(
@@ -196,9 +212,11 @@ class A3CNetwork(object):
         # get the gradients of the agent's trainable variables
         #agent_gradients = np.array(self.optimizer.compute_gradients(self.loss, agent_weights))[:,0]
         agent_gradients = tf.gradients(self.loss, agent_weights)
+        #self.agent_gradients = tf.gradients(self.loss, agent_weights)
 
         # get trainable variables for global network
         global_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, GLOBAL_SCOPE)
+        #self.global_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, GLOBAL_SCOPE)
 
         clipped_gradients, _ = tf.clip_by_global_norm(agent_gradients,40.0)
         print('agent gradients')

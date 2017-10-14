@@ -4,7 +4,8 @@ from A3C_network import A3CNetwork
 import tensorflow as tf
 
 # where to periodically save the model
-MODEL_PATH = './mario-pixel-models'
+SUMMARY_FOLDER = 'mario-pixel-models'
+MODEL_PATH = './models/' + SUMMARY_FOLDER
 
 def main():
     """ the main function """
@@ -25,23 +26,31 @@ def main():
         trainable=False
     )
 
+    global_writer = tf.summary.FileWriter('./logs/%s/global' % SUMMARY_FOLDER)
+
     globalz = A3CNetwork(global_shape, 14, 'global')
 
     """ create an array of agents"""
     agents = []
     for i in range(0,NUMBER_OF_AGENTS):
-        agents.append(Agent(LEVEL_NAME, global_shape, 'agent_' + str(i), episode_count))
+        agents.append(Agent(
+            LEVEL_NAME, 
+            global_shape, 
+            'agent_' + str(i), 
+            episode_count, 
+            global_writer
+        ))
 
     """ run all agents in separate threads """
     agent_threads = []
 
 
-    load_model = False
+    load_model = True
 
     # saver for saving model
     saver = tf.train.Saver(max_to_keep=3)
 
-    if load_model == True:
+    if load_model == False:
         print ('Loading Model...')
         ckpt = tf.train.get_checkpoint_state(MODEL_PATH)
         saver.restore(sess,ckpt.model_checkpoint_path)
