@@ -101,7 +101,7 @@ class Agent(object):
                 #action[np.random.choice(range(policy.shape[1]), p=policy[0])] = 1
                 action_discrete = np.random.choice(range(policy.shape[1]), p=policy[0])
                 action_discrete_onehot = np.zeros(self.action_n, dtype=int)
-                action_discrete_onehot[action_discrete]
+                action_discrete_onehot[action_discrete] = 1
                 action = discrete_to_multi_action(action_discrete)
 
                 # take a step in env with action
