@@ -4,7 +4,7 @@ import numpy as np
 GLOBAL_SCOPE = 'global'
 
 # constant for actor loss
-BETA = 0.001
+BETA = 0.01
 
 class A3CNetwork(object):
 
@@ -124,7 +124,7 @@ class A3CNetwork(object):
                     #print('logp')
                     #print(logp)
 
-                    self.advantage = self.reward - self.critic_out
+                    self.advantage = self.reward - tf.stop_gradient(self.critic_out)
                     #print('advantage')
                     #print(self.advantage)
 
@@ -141,14 +141,14 @@ class A3CNetwork(object):
                     # loss function for Critic network
                     # multiplied by 1/2 because the learning rate is half
                     # of the Actor learning rate
-                    self.critic_loss = 1/4 * tf.nn.l2_loss(self.advantage)
+                    self.critic_loss = 1/2 * tf.nn.l2_loss(self.advantage)
                     #print('critic_loss')
                     #print(critic_loss)
 
                     self.loss = self.critic_loss + self.actor_loss - self.policy_entropy
 
                     # init an optimizer to use when training
-                    self.optimizer = tf.train.AdamOptimizer()
+                    self.optimizer = tf.train.AdamOptimizer(learning_rate=1e-4)
 
                     # init operation for updating global network
                     self._init_sync_global_network()

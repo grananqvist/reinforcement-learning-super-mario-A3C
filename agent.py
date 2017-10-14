@@ -110,6 +110,8 @@ class Agent(object):
 
                 """ reward modifications """
 
+                r /= 3
+
                 # -1 reward for mario dying
                 if done and 'life' in info and info['life'] == 0:
                     r -= 1
@@ -159,6 +161,8 @@ class Agent(object):
                         discounted_reward = reward + GAMMA * discounted_reward
                         discounted_rewards_buffer.insert(0, discounted_reward)
                     discounted_rewards_buffer = np.array(discounted_rewards_buffer).reshape(-1,1)
+                    
+                    # calculate advantages
 
 
                     (self.batch_lstm_c, self.batch_lstm_h), summary, _ = sess.run(
@@ -200,8 +204,6 @@ class Agent(object):
 
             # add distribution of weights to summary for this episode
             summary_hist = sess.run([self.a3cnet.weights_summary_op], feed_dict={})[0]
-            print('weights:')
-            print(summary_hist)
             self.global_writer.add_summary(summary_hist, global_ep)
 
             # track the total reward recieved for the finished episode
