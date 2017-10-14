@@ -65,6 +65,7 @@ class Agent(object):
             s, _, done, _ = self.env.step(self.env.action_space.sample()) 
             s = preprocess_state(s)
             prev_score = 0
+            prev_time = 400
 
             # reset LSTM memory
             lstm_c = np.zeros((1, self.a3cnet.lstm_cell.state_size.c))
@@ -110,14 +111,20 @@ class Agent(object):
 
                 """ reward modifications """
 
-                r /= 3
+                #r /= 3
 
                 # -1 reward for mario dying
                 if done and 'life' in info and info['life'] == 0:
-                    r -= 1
+                    r -= 100
 
                 # maximum reward for gaining any score is currently clipped at 1
-                r += np.min([1, 0.005 * (info['score'] - prev_score)])
+                if 'score' in info:
+                    r += np.min([20, 0.075 * (info['score'] - prev_score)])
+                    prev_score = info['score']
+
+                if 'time' in info:
+                    r -= 0.1 * (prev_time - info['time'])
+                    prev_time = info['time']
                 
 
                 # observe results and store in buffers
@@ -131,11 +138,11 @@ class Agent(object):
                 if step_counter % GLOBAL_UPDATE_INTERVAL == 0 or done:
 
                     """ debug """
-                    print(str(self.name) + ' reward for batch: ' + str(total_reward))
+                    #print(str(self.name) + ' reward for batch: ' + str(total_reward))
                     total_reward = 0
 
-                    print('recent value: %f' % value)
-                    print('recent policy: ' + str(policy))
+                    #print('recent value: %f' % value)
+                    #print('recent policy: ' + str(policy))
                     """ debug """
 
                     if done:
@@ -151,7 +158,7 @@ class Agent(object):
                         )[0][0]
 
                     # update global net
-                    print('buffer size: ' + str(len(state_buffer)))
+                    #print('buffer size: ' + str(len(state_buffer)))
 
                     # calculate discounted rewards all the way to current state s
                     # for each state in state buffer
@@ -190,7 +197,6 @@ class Agent(object):
                     self.writer.add_summary(summary, step_counter)
 
                 s = s_
-                prev_score = info['score']
                 step_counter += 1
 
 

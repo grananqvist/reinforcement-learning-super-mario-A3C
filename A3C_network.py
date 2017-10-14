@@ -93,6 +93,14 @@ class A3CNetwork(object):
                     name='actor_dense1'
                 )
 
+
+                """tf.summary.scalar(
+                    'policy', 
+                    self.policy_dist,
+                    collections=[self.scope]
+                )"""
+
+
                 
             # define the Critic network (value)
             with tf.variable_scope('critic'):

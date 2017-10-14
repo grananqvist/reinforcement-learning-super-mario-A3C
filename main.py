@@ -10,7 +10,7 @@ MODEL_PATH = './models/' + SUMMARY_FOLDER
 def main():
     """ the main function """
     LEVEL_NAME = 'meta-SuperMarioBros-v0'
-    NUMBER_OF_AGENTS = 2
+    NUMBER_OF_AGENTS = 8
     global_shape = (176,256,3)
 
     tf.reset_default_graph()
@@ -45,12 +45,12 @@ def main():
     agent_threads = []
 
 
-    load_model = True
+    load_model = False
 
     # saver for saving model
     saver = tf.train.Saver(max_to_keep=3)
 
-    if load_model == False:
+    if load_model == True:
         print ('Loading Model...')
         ckpt = tf.train.get_checkpoint_state(MODEL_PATH)
         saver.restore(sess,ckpt.model_checkpoint_path)
