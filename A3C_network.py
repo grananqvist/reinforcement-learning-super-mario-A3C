@@ -4,7 +4,7 @@ import numpy as np
 GLOBAL_SCOPE = 'global'
 
 # constant for actor loss
-BETA = 0.01
+BETA = 0.001
 
 class A3CNetwork(object):
 
@@ -121,32 +121,31 @@ class A3CNetwork(object):
                     logp = tf.log(tf.reduce_sum(
                         self.actor_out * self.action_taken, axis=1, keep_dims=True
                     ) + 1e-10)
-                    print('logp')
-                    print(logp)
+                    #print('logp')
+                    #print(logp)
 
                     self.advantage = self.reward - self.critic_out
-                    print('advantage')
-                    print(self.advantage)
+                    #print('advantage')
+                    #print(self.advantage)
 
                     # calculate H(pi), the policy entropy. Add small number here aswell for the
                     # same reason as for logp
-                    policy_entropy = -1 * tf.reduce_sum(self.actor_out * tf.log(self.actor_out + 1e-10))
-                    print('entropy')
-                    print(policy_entropy)
+                    self.policy_entropy = -1 * BETA * tf.reduce_sum(self.actor_out * tf.log(self.actor_out + 1e-10))
+                    #print('entropy')
+                    #print(policy_entropy)
 
-                    actor_loss = -1 * tf.reduce_sum(logp * self.advantage) \
-                            - BETA * policy_entropy
-                    print('actor loss')
-                    print(actor_loss)
+                    self.actor_loss = -1 * tf.reduce_sum(logp * self.advantage) 
+                    #print('actor loss')
+                    #print(actor_loss)
 
                     # loss function for Critic network
                     # multiplied by 1/2 because the learning rate is half
                     # of the Actor learning rate
-                    critic_loss = 1/4 * tf.reduce_sum(tf.square(self.advantage))
-                    print('critic_loss')
-                    print(critic_loss)
+                    self.critic_loss = 1/4 * tf.nn.l2_loss(self.advantage)
+                    #print('critic_loss')
+                    #print(critic_loss)
 
-                    self.loss = critic_loss + actor_loss
+                    self.loss = self.critic_loss + self.actor_loss - self.policy_entropy
 
                     # init an optimizer to use when training
                     self.optimizer = tf.train.AdamOptimizer()
@@ -157,13 +156,28 @@ class A3CNetwork(object):
                     # init operation for syncing this network with the global network
                     self._init_copy_global_network()
 
-                # summaries for logging performance metrics to tensorboard
+                    # summaries for logging performance metrics to tensorboard
 
-                tf.summary.scalar(
-                    'loss', 
-                    tf.reduce_mean(self.loss), 
-                    collections=[self.scope]
-                )
+                    tf.summary.scalar(
+                        'loss', 
+                        tf.reduce_mean(self.loss), 
+                        collections=[self.scope]
+                    )
+                    tf.summary.scalar(
+                        'policy_entropy', 
+                        self.policy_entropy,
+                        collections=[self.scope]
+                    )
+                    tf.summary.scalar(
+                        'actor_loss', 
+                        self.actor_loss,
+                        collections=[self.scope]
+                    )
+                    tf.summary.scalar(
+                        'critic_loss', 
+                        self.critic_loss,
+                        collections=[self.scope]
+                    )
 
                  
             self.weights_summary_op = tf.summary.merge_all(GLOBAL_SCOPE)
@@ -216,7 +230,6 @@ class A3CNetwork(object):
 
         # get trainable variables for global network
         global_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, GLOBAL_SCOPE)
-        #self.global_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, GLOBAL_SCOPE)
 
         clipped_gradients, _ = tf.clip_by_global_norm(agent_gradients,40.0)
         print('agent gradients')

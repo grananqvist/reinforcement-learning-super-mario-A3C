@@ -131,6 +131,9 @@ class Agent(object):
                     """ debug """
                     print(str(self.name) + ' reward for batch: ' + str(total_reward))
                     total_reward = 0
+
+                    print('recent value: %f' % value)
+                    print('recent policy: ' + str(policy))
                     """ debug """
 
                     if done:
@@ -173,11 +176,11 @@ class Agent(object):
                         }
                     )
 
-                    # reset buffers
-                    state_buffer, action_buffer, reward_buffer = [], [], []
-
                     # copy global net to agent
                     sess.run([self.a3cnet.copy_global_network])
+
+                    # reset buffers
+                    state_buffer, action_buffer, reward_buffer = [], [], []
 
 
                     self.writer.add_summary(summary, step_counter)
