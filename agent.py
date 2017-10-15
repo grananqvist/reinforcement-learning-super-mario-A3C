@@ -63,8 +63,11 @@ class Agent(object):
             # reset env by changing level. env.reset doesn't work for super mario
             # also change to the latest unlocked level
             s, _, done, info = self.env.step(self.env.action_space.sample()) 
+
+
             latest_level = np.argmax(info['locked_levels']) - 1
-            self.env.change_level(new_level=latest_level)
+            if info['level'] < latest_level:
+                self.env.change_level(new_level=latest_level)
             s = preprocess_state(s)
 
             prev_score = 0
