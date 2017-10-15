@@ -3,7 +3,7 @@ import numpy as np
 def preprocess_state(state):
     """ Normalize the input values to be between 0 and 1 """
     state = state[32:-16]
-    return np.multiply(state, 1/np.max(state))
+    return np.multiply(state, 1.0/255)
 
 def discrete_to_multi_action(action_discrete):
     """ sfdsdfs """

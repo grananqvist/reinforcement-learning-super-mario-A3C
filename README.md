@@ -3,13 +3,13 @@
 Learning to play supermario using A3C algorithm
 
 Todo:
-- [ ] Possibly train without gui
-- [ ] Implement Tensorboard
-- [ ] Save model
-- [ ] crop image
+- [X] Implement Tensorboard
+- [X] Save model
+- [X] crop image
 - [ ] Train on Pong
 - [ ] Train on tiles
 - [X] Reward engineering
+- [X] Timeout restart
 
 Things to change in the super-mario-bros.lua file to send slightly less data through the pipe:
 - Row 48: skip\_frames=6

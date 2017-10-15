@@ -10,7 +10,7 @@ MODEL_PATH = './models/' + SUMMARY_FOLDER
 def main():
     """ the main function """
     LEVEL_NAME = 'meta-SuperMarioBros-v0'
-    NUMBER_OF_AGENTS = 8
+    NUMBER_OF_AGENTS = 4
     global_shape = (176,256,3)
 
     tf.reset_default_graph()

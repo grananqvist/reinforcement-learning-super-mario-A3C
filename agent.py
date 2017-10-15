@@ -58,12 +58,15 @@ class Agent(object):
         while not coord.should_stop():
 
             # reset buffers
-            action_buffer, state_buffer, reward_buffer = [], [], []
+            action_buffer, state_buffer, reward_buffer, value_buffer = [], [], [], []
 
             # reset env by changing level. env.reset doesn't work for super mario
-            self.env.change_level(new_level=2)
-            s, _, done, _ = self.env.step(self.env.action_space.sample()) 
+            # also change to the latest unlocked level
+            s, _, done, info = self.env.step(self.env.action_space.sample()) 
+            latest_level = np.argmax(info['locked_levels']) - 1
+            self.env.change_level(new_level=latest_level)
             s = preprocess_state(s)
+
             prev_score = 0
             prev_time = 400
 
@@ -77,6 +80,8 @@ class Agent(object):
             # keep track of total reward for entire episode
             total_reward = 0 #TODO only for debug
             episode_reward = 0
+            max_distance = 0
+            steps_since_progress = 0
 
 
             # state step loop
@@ -109,6 +114,14 @@ class Agent(object):
                 s_, r, done, info = self.env.step(action)
                 s_ = preprocess_state(s_)
 
+                is_stuck = False
+
+                # save variables for summary later
+                if 'life' in info:
+                    current_life= info['life']
+                if 'score' in info:
+                    current_score = info['score']
+
                 """ reward modifications """
 
                 #r /= 3
@@ -122,15 +135,35 @@ class Agent(object):
                     r += np.min([20, 0.075 * (info['score'] - prev_score)])
                     prev_score = info['score']
 
+                if 'distance' in info: 
+                    if max_distance < info['distance']:
+                        max_distance = info['distance']
+                        steps_since_progress = 0
+                    else:
+                        steps_since_progress += 1
+                    
+                    is_stuck = True if steps_since_progress > 50 else False
+
+
                 if 'time' in info:
-                    r -= 0.1 * (prev_time - info['time'])
+                    # 3 times more costly per time step if mario is stuck
+                    time_multiplier = 0.3 if is_stuck else 0.1
+                    r -= time_multiplier * (prev_time - info['time'])
+
                     prev_time = info['time']
+
+                # if stuck for roughly 30 seconds, kill mario and give negative reward
+                if steps_since_progress > 300:
+                    done = True
+                    current_life = 0
+                    r -= 40
                 
 
                 # observe results and store in buffers
                 state_buffer.append(s)
                 action_buffer.append(action_discrete_onehot)
                 reward_buffer.append(r)
+                value_buffer.append(value) # TODO: not used at the moment
                 
                 total_reward += r
                 episode_reward += r
@@ -191,7 +224,7 @@ class Agent(object):
                     sess.run([self.a3cnet.copy_global_network])
 
                     # reset buffers
-                    state_buffer, action_buffer, reward_buffer = [], [], []
+                    state_buffer, action_buffer, reward_buffer, value_buffer = [], [], [], []
 
 
                     self.writer.add_summary(summary, step_counter)
@@ -212,9 +245,21 @@ class Agent(object):
             summary_hist = sess.run([self.a3cnet.weights_summary_op], feed_dict={})[0]
             self.global_writer.add_summary(summary_hist, global_ep)
 
-            # track the total reward recieved for the finished episode
             summary = tf.Summary()
+
+            # track the total reward recieved for the finished episode
             summary.value.add(tag='Reward', simple_value=float(episode_reward))
+
+            # track whether or not the level was completed
+            is_level_completed = current_life > 0
+            summary.value.add(tag='Level_completed', simple_value=float(is_level_completed))
+
+            # track the distance mario reached
+            summary.value.add(tag='Distance', simple_value=float(max_distance))
+
+            # track the number of score gathered
+            summary.value.add(tag='Score', simple_value=float(current_score))
+
             self.global_writer.add_summary(summary, global_ep)
             self.global_writer.flush()
 
