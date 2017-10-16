@@ -57,12 +57,12 @@ def main():
     else:
         sess.run(tf.global_variables_initializer())
 
-
     for agent in agents:
         f = lambda: agent.train(sess, coord, saver)
         t = Thread(target=f)
         t.start()
         agent_threads.append(t)
+    #agents[0].train(sess, coord, saver)
 
 
 

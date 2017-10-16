@@ -126,13 +126,13 @@ class A3CNetwork(object):
                     # The probability is extracted by multiplying by the one hot action vector
                     # add small number (1e-10) to prevent greedy epsilon policy from choosing
                     # and actin of probability zero. produces NaN otherwise
-                    logp = tf.log(tf.reduce_sum(
+                    self.logp = tf.log(tf.reduce_sum(
                         self.actor_out * self.action_taken, axis=1, keep_dims=True
                     ) + 1e-10)
                     #print('logp')
                     #print(logp)
 
-                    self.advantage = self.reward - tf.stop_gradient(self.critic_out)
+                    self.advantage = self.reward - (self.critic_out)
                     #print('advantage')
                     #print(self.advantage)
 
@@ -142,14 +142,14 @@ class A3CNetwork(object):
                     #print('entropy')
                     #print(policy_entropy)
 
-                    self.actor_loss = -1 * tf.reduce_sum(logp * self.advantage) 
+                    self.actor_loss = -1 * tf.reduce_sum(self.logp * self.advantage) 
                     #print('actor loss')
                     #print(actor_loss)
 
                     # loss function for Critic network
                     # multiplied by 1/2 because the learning rate is half
                     # of the Actor learning rate
-                    self.critic_loss = 1/2 * tf.nn.l2_loss(self.advantage)
+                    self.critic_loss = 1/2 * tf.nn.l2_loss(self.reward - self.critic_out)
                     #print('critic_loss')
                     #print(critic_loss)
 

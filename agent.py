@@ -10,7 +10,7 @@ from PIL import Image
 GAMMA = 0.99
 
 # number of iterations to store in buffers before updating global net
-GLOBAL_UPDATE_INTERVAL = 30
+GLOBAL_UPDATE_INTERVAL = 15
 
 # where to periodically save the model
 SUMMARY_FOLDER = 'pong-pixels'
@@ -146,9 +146,9 @@ class Agent(object):
                         value_s = sess.run(
                             [self.a3cnet.critic_out],
                             feed_dict={
-                                self.a3cnet.s: [s],
-                                self.a3cnet.lstm_c: self.batch_lstm_c,
-                                self.a3cnet.lstm_h: self.batch_lstm_h
+                                self.a3cnet.s: [s_],
+                                self.a3cnet.lstm_c: lstm_c,
+                                self.a3cnet.lstm_h: lstm_h
                             }
                         )[0][0]
 
