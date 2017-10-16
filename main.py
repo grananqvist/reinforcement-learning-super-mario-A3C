@@ -4,14 +4,14 @@ from A3C_network import A3CNetwork
 import tensorflow as tf
 
 # where to periodically save the model
-SUMMARY_FOLDER = 'mario-pixel-models'
+SUMMARY_FOLDER = 'pong-pixels'
 MODEL_PATH = './models/' + SUMMARY_FOLDER
 
 def main():
     """ the main function """
-    LEVEL_NAME = 'meta-SuperMarioBros-v0'
+    LEVEL_NAME = 'Pong-v0'
     NUMBER_OF_AGENTS = 4
-    global_shape = (176,256,3)
+    global_shape = (210, 160, 3)
 
     tf.reset_default_graph()
 
@@ -28,7 +28,7 @@ def main():
 
     global_writer = tf.summary.FileWriter('./logs/%s/global' % SUMMARY_FOLDER)
 
-    globalz = A3CNetwork(global_shape, 14, 'global')
+    globalz = A3CNetwork(global_shape, 6, 'global')
 
     """ create an array of agents"""
     agents = []
