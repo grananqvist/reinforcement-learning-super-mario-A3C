@@ -54,6 +54,8 @@ class Agent(object):
 
         s = self.env.reset()
 
+        restart = False
+
         # episode loop. Continue playing the game while should not stop
         while not coord.should_stop():
 
@@ -66,7 +68,7 @@ class Agent(object):
 
 
             latest_level = np.argmax(info['locked_levels']) - 1
-            if info['level'] < latest_level:
+            if info['level'] < latest_level or restart:
                 self.env.change_level(new_level=latest_level)
             s = preprocess_state(s)
 
@@ -85,10 +87,10 @@ class Agent(object):
             episode_reward = 0
             max_distance = 0
             steps_since_progress = 0
-
+            restart = False
 
             # state step loop
-            while not done:
+            while not (done or restart):
                 
                 self.env.render()
 
@@ -157,7 +159,7 @@ class Agent(object):
 
                 # if stuck for roughly 30 seconds, kill mario and give negative reward
                 if steps_since_progress > 300:
-                    done = True
+                    restart = True
                     current_life = 0
                     r -= 40
                 
@@ -166,12 +168,12 @@ class Agent(object):
                 state_buffer.append(s)
                 action_buffer.append(action_discrete_onehot)
                 reward_buffer.append(r)
-                value_buffer.append(value) # TODO: not used at the moment
+                value_buffer.append(value[0,0])
                 
                 total_reward += r
                 episode_reward += r
 
-                if step_counter % GLOBAL_UPDATE_INTERVAL == 0 or done:
+                if step_counter % GLOBAL_UPDATE_INTERVAL == 0 or done or restart:
 
                     """ debug """
                     #print(str(self.name) + ' reward for batch: ' + str(total_reward))
@@ -187,9 +189,9 @@ class Agent(object):
                         value_s = sess.run(
                             [self.a3cnet.critic_out],
                             feed_dict={
-                                self.a3cnet.s: [s],
-                                self.a3cnet.lstm_c: self.batch_lstm_c,
-                                self.a3cnet.lstm_h: self.batch_lstm_h
+                                self.a3cnet.s: [s_],
+                                self.a3cnet.lstm_c: lstm_c,
+                                self.a3cnet.lstm_h: lstm_h
                             }
                         )[0][0]
 
@@ -206,6 +208,17 @@ class Agent(object):
                     discounted_rewards_buffer = np.array(discounted_rewards_buffer).reshape(-1,1)
                     
                     # calculate advantages
+                    discounted_advantages_buffer = []
+                    advantages_buffer = np.array(reward_buffer) + \
+                            GAMMA * np.array( value_buffer[1:] + [value_s] ) - \
+                            np.array(value_buffer)
+
+                    discounted_advantage = 0
+                    for advantage in reversed(advantages_buffer):
+                        discounted_advantage = advantage + GAMMA * discounted_advantage
+                        discounted_advantages_buffer.insert(0, discounted_advantage)
+                    discounted_advantages_buffer = np.array(discounted_advantages_buffer).reshape(-1,1)
+
 
 
                     (self.batch_lstm_c, self.batch_lstm_h), summary, _ = sess.run(
@@ -217,6 +230,7 @@ class Agent(object):
                         feed_dict={
                             self.a3cnet.s: np.stack(state_buffer),
                             self.a3cnet.reward: discounted_rewards_buffer,
+                            self.a3cnet.advantage: discounted_advantages_buffer,
                             self.a3cnet.action_taken: action_buffer,
                             self.a3cnet.lstm_c: self.batch_lstm_c,
                             self.a3cnet.lstm_h: self.batch_lstm_h

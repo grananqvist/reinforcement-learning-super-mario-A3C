@@ -116,8 +116,11 @@ class A3CNetwork(object):
                 
                 with tf.variable_scope('loss'):
 
-                    # the batch of rewards recieved
+                    # the batch of rewards 
                     self.reward = tf.placeholder(tf.float32, shape=[None, 1], name='R')
+
+                    # the batch of advantages 
+                    self.advantage = tf.placeholder(tf.float32, shape=[None, 1], name='A')
 
                     # the action taken
                     self.action_taken = tf.placeholder(tf.float32, shape=[None, self.action_n], name='Action')
@@ -132,10 +135,6 @@ class A3CNetwork(object):
                     #print('logp')
                     #print(logp)
 
-                    self.advantage = self.reward - tf.stop_gradient(self.critic_out)
-                    #print('advantage')
-                    #print(self.advantage)
-
                     # calculate H(pi), the policy entropy. Add small number here aswell for the
                     # same reason as for logp
                     self.policy_entropy = -1 * BETA * tf.reduce_sum(self.actor_out * tf.log(self.actor_out + 1e-10))
@@ -149,7 +148,7 @@ class A3CNetwork(object):
                     # loss function for Critic network
                     # multiplied by 1/2 because the learning rate is half
                     # of the Actor learning rate
-                    self.critic_loss = 1/2 * tf.nn.l2_loss(self.advantage)
+                    self.critic_loss = 1/2 * tf.nn.l2_loss(self.reward - self.critic_out)
                     #print('critic_loss')
                     #print(critic_loss)
 
