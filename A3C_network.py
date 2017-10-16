@@ -119,6 +119,8 @@ class A3CNetwork(object):
                     # the batch of rewards recieved
                     self.reward = tf.placeholder(tf.float32, shape=[None, 1], name='R')
 
+                    self.advantage = tf.placeholder(tf.float32, shape=[None, 1], name='A')
+
                     # the action taken
                     self.action_taken = tf.placeholder(tf.float32, shape=[None, self.action_n], name='Action')
 
@@ -132,7 +134,6 @@ class A3CNetwork(object):
                     #print('logp')
                     #print(logp)
 
-                    self.advantage = self.reward - (self.critic_out)
                     #print('advantage')
                     #print(self.advantage)
 
