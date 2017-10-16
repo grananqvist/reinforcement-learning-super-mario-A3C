@@ -119,7 +119,7 @@ class Agent(object):
                 s_, r, done, info = self.env.step(np.argmax(action))
                 s_ = np.multiply(s_, 1.0/255)
 
-                self.env.render()
+                #self.env.render()
 
                 # observe results and store in buffers
                 state_buffer.append(s)
