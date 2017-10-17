@@ -5,6 +5,7 @@ from multiprocessing import Lock
 from A3C_network import A3CNetwork
 from helper_functions import discrete_to_multi_action, preprocess_state
 from PIL import Image
+from random import randint
 
 # discount factor
 GAMMA = 0.99
@@ -54,6 +55,10 @@ class Agent(object):
 
         s = self.env.reset()
 
+        # Unlock all levels
+        for i,l in enumerate(self.env.locked_levels):
+            self.env.locked_levels[i] = False
+
         restart = False
 
         # episode loop. Continue playing the game while should not stop
@@ -62,14 +67,19 @@ class Agent(object):
             # reset buffers
             action_buffer, state_buffer, reward_buffer, value_buffer = [], [], [], []
 
+            # Change level to random level between 0 and 31
+            level_number = randint(0,31)
+            self.env.change_level(new_level=level_number)
+
+
             # reset env by changing level. env.reset doesn't work for super mario
             # also change to the latest unlocked level
             s, _, done, info = self.env.step(self.env.action_space.sample()) 
 
 
-            latest_level = np.argmax(info['locked_levels']) - 1
-            if info['level'] < latest_level or restart:
-                self.env.change_level(new_level=latest_level)
+            #latest_level = np.argmax(info['locked_levels']) - 1
+            #if info['level'] < latest_level or restart:
+                #self.env.change_level(new_level=latest_level)
             s = preprocess_state(s)
 
             prev_score = 0
