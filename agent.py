@@ -7,6 +7,13 @@ from helper_functions import discrete_to_multi_action, preprocess_state
 from PIL import Image
 from random import randint
 
+# max distance for each level 0-31
+MAX_DISTANCE_LEVEL = [
+    3266, 3298, 3298, 3698, 3282, 3106, 2962,   
+    6114, 3266, 3266, 3442, 3266, 3298, 3554,
+    3266, 3554, 2514, 3682, 2498, 2434, 2514, 2754,
+    3682, 3554, 2430, 2430, 2430, 2942, 2429, 2429, 3453, 4989]
+
 # discount factor
 GAMMA = 0.99
 
@@ -56,8 +63,9 @@ class Agent(object):
         s = self.env.reset()
 
         # Unlock all levels
-        for i,l in enumerate(self.env.locked_levels):
-            self.env.locked_levels[i] = False
+        #for i,l in enumerate(self.env.locked_levels):
+            #self.env.locked_levels[i] = False
+        current_level = 0
 
         restart = False
 
@@ -67,15 +75,13 @@ class Agent(object):
             # reset buffers
             action_buffer, state_buffer, reward_buffer, value_buffer = [], [], [], []
 
-            # Change level to random level between 0 and 31
-            level_number = randint(0,31)
-            self.env.change_level(new_level=level_number)
-
-
             # reset env by changing level. env.reset doesn't work for super mario
             # also change to the latest unlocked level
             s, _, done, info = self.env.step(self.env.action_space.sample()) 
 
+            if info['level'] < current_level:
+                self.env.locked_levels[current_level] = False   # Unlock level
+                self.env.change_level(new_level=current_level)  # Change level
 
             #latest_level = np.argmax(info['locked_levels']) - 1
             #if info['level'] < latest_level or restart:
@@ -182,6 +188,10 @@ class Agent(object):
                 
                 total_reward += r
                 episode_reward += r
+
+                # Check if level should be changed
+                if done and info['distance'] > 0.95*MAX_DISTANCE_LEVEL[info['level']]:
+                    current_level += 1
 
                 if step_counter % GLOBAL_UPDATE_INTERVAL == 0 or done or restart:
 
