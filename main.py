@@ -45,7 +45,7 @@ def main():
     agent_threads = []
 
 
-    load_model = False
+    load_model = True
 
     # saver for saving model
     saver = tf.train.Saver(max_to_keep=3)

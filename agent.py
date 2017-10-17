@@ -82,6 +82,8 @@ class Agent(object):
             if info['level'] < current_level:
                 self.env.locked_levels[current_level] = False   # Unlock level
                 self.env.change_level(new_level=current_level)  # Change level
+            elif restart:
+                self.env.change_level(new_level=current_level)
 
             #latest_level = np.argmax(info['locked_levels']) - 1
             #if info['level'] < latest_level or restart:
@@ -153,7 +155,7 @@ class Agent(object):
 
                 # maximum reward for gaining any score is currently clipped at 1
                 if 'score' in info:
-                    r += np.min([20, 0.075 * (info['score'] - prev_score)])
+                    r += np.min([100, 0.1 * (info['score'] - prev_score)])
                     prev_score = info['score']
 
                 if 'distance' in info: 
@@ -166,12 +168,14 @@ class Agent(object):
                     is_stuck = True if steps_since_progress > 50 else False
 
 
+                """
                 if 'time' in info:
                     # 3 times more costly per time step if mario is stuck
                     time_multiplier = 0.3 if is_stuck else 0.1
                     r -= time_multiplier * (prev_time - info['time'])
 
                     prev_time = info['time']
+                """
 
                 # if stuck for roughly 30 seconds, kill mario and give negative reward
                 if steps_since_progress > 300:
@@ -190,7 +194,7 @@ class Agent(object):
                 episode_reward += r
 
                 # Check if level should be changed
-                if done and info['distance'] > 0.95*MAX_DISTANCE_LEVEL[info['level']]:
+                if done and 'distance' in info and info['distance'] > 0.97*MAX_DISTANCE_LEVEL[info['level']]:
                     current_level += 1
 
                 if step_counter % GLOBAL_UPDATE_INTERVAL == 0 or done or restart:
@@ -279,8 +283,8 @@ class Agent(object):
             print('%s: episode nr: %i completed' % (self.name, global_ep))
 
             # add distribution of weights to summary for this episode
-            summary_hist = sess.run([self.a3cnet.weights_summary_op], feed_dict={})[0]
-            self.global_writer.add_summary(summary_hist, global_ep)
+            #summary_hist = sess.run([self.a3cnet.weights_summary_op], feed_dict={})[0]
+            #self.global_writer.add_summary(summary_hist, global_ep)
 
             summary = tf.Summary()
 
