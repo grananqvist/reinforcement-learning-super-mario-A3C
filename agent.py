@@ -17,11 +17,13 @@ MAX_DISTANCE_LEVEL = [
 # discount factor
 GAMMA = 0.99
 
+EPSILON = 0.02
+
 # number of iterations to store in buffers before updating global net
 GLOBAL_UPDATE_INTERVAL = 30
 
 # where to periodically save the model
-SUMMARY_FOLDER = 'mario-pixel-models'
+SUMMARY_FOLDER = 'mario-pixel-models-time-pen'
 MODEL_PATH = './models/' + SUMMARY_FOLDER
 
 class Agent(object):
@@ -67,7 +69,8 @@ class Agent(object):
             #self.env.locked_levels[i] = False
         current_level = 0
 
-        restart = False
+        rolling_completed_level = []
+
 
         # episode loop. Continue playing the game while should not stop
         while not coord.should_stop():
@@ -75,15 +78,12 @@ class Agent(object):
             # reset buffers
             action_buffer, state_buffer, reward_buffer, value_buffer = [], [], [], []
 
+            self.env.change_level(new_level=0)  # Change level
+
             # reset env by changing level. env.reset doesn't work for super mario
             # also change to the latest unlocked level
             s, _, done, info = self.env.step(self.env.action_space.sample()) 
 
-            if info['level'] < current_level:
-                self.env.locked_levels[current_level] = False   # Unlock level
-                self.env.change_level(new_level=current_level)  # Change level
-            elif restart:
-                self.env.change_level(new_level=current_level)
 
             #latest_level = np.argmax(info['locked_levels']) - 1
             #if info['level'] < latest_level or restart:
@@ -105,10 +105,9 @@ class Agent(object):
             episode_reward = 0
             max_distance = 0
             steps_since_progress = 0
-            restart = False
 
             # state step loop
-            while not (done or restart):
+            while not done:
                 
                 self.env.render()
 
@@ -128,7 +127,14 @@ class Agent(object):
                 #action = np.array([np.random.choice(2, p=[1-policy[0,i], policy[0,i]]) 
                 #    for i in range(policy.shape[1])])
                 #action[np.random.choice(range(policy.shape[1]), p=policy[0])] = 1
+
+                """
+                if np.random.uniform() < EPSILON:
+                    action_discrete = np.random.choice(range(policy.shape[1]))
+                else:
+                """
                 action_discrete = np.random.choice(range(policy.shape[1]), p=policy[0])
+
                 action_discrete_onehot = np.zeros(self.action_n, dtype=int)
                 action_discrete_onehot[action_discrete] = 1
                 action = discrete_to_multi_action(action_discrete)
@@ -137,7 +143,6 @@ class Agent(object):
                 s_, r, done, info = self.env.step(action)
                 s_ = preprocess_state(s_)
 
-                is_stuck = False
 
                 # save variables for summary later
                 if 'life' in info:
@@ -147,15 +152,16 @@ class Agent(object):
 
                 """ reward modifications """
 
-                #r /= 3
+                r /= 2
 
                 # -1 reward for mario dying
                 if done and 'life' in info and info['life'] == 0:
-                    r -= 100
+                    r -= 1
+
 
                 # maximum reward for gaining any score is currently clipped at 1
                 if 'score' in info:
-                    r += np.min([100, 0.1 * (info['score'] - prev_score)])
+                    r += np.min([0.5, 0.001 * (info['score'] - prev_score)])
                     prev_score = info['score']
 
                 if 'distance' in info: 
@@ -165,23 +171,18 @@ class Agent(object):
                     else:
                         steps_since_progress += 1
                     
-                    is_stuck = True if steps_since_progress > 50 else False
 
-
-                """
                 if 'time' in info:
-                    # 3 times more costly per time step if mario is stuck
-                    time_multiplier = 0.3 if is_stuck else 0.1
-                    r -= time_multiplier * (prev_time - info['time'])
+                    r -= 0.01 * (prev_time - info['time'])
 
                     prev_time = info['time']
-                """
 
                 # if stuck for roughly 30 seconds, kill mario and give negative reward
                 if steps_since_progress > 300:
-                    restart = True
+                    done = True
                     current_life = 0
-                    r -= 40
+                    r -= 1
+                    #r -= 50
                 
 
                 # observe results and store in buffers
@@ -197,7 +198,7 @@ class Agent(object):
                 if done and 'distance' in info and info['distance'] > 0.97*MAX_DISTANCE_LEVEL[info['level']]:
                     current_level += 1
 
-                if step_counter % GLOBAL_UPDATE_INTERVAL == 0 or done or restart:
+                if step_counter % GLOBAL_UPDATE_INTERVAL == 0 or done:
 
                     """ debug """
                     #print(str(self.name) + ' reward for batch: ' + str(total_reward))
@@ -292,8 +293,13 @@ class Agent(object):
             summary.value.add(tag='Reward', simple_value=float(episode_reward))
 
             # track whether or not the level was completed
-            is_level_completed = current_life > 0
-            summary.value.add(tag='Level_completed', simple_value=float(is_level_completed))
+            if len(rolling_completed_level) > 100:
+                rolling_completed_level.pop()
+            if current_life > 0:
+                rolling_completed_level.insert(0,1.0)
+            else:
+                rolling_completed_level.insert(0,0.0)
+            summary.value.add(tag='Level_completed', simple_value=float(np.sum(rolling_completed_level)/100))
 
             # track the distance mario reached
             summary.value.add(tag='Distance', simple_value=float(max_distance))

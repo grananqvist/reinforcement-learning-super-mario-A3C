@@ -4,7 +4,7 @@ from A3C_network import A3CNetwork
 import tensorflow as tf
 
 # where to periodically save the model
-SUMMARY_FOLDER = 'mario-pixel-models'
+SUMMARY_FOLDER = 'mario-pixel-models-time-pen'
 MODEL_PATH = './models/' + SUMMARY_FOLDER
 
 def main():
