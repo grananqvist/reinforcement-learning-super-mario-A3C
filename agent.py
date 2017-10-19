@@ -69,6 +69,8 @@ class Agent(object):
 
         restart = False
 
+        rolling_completed_level = []
+
         # episode loop. Continue playing the game while should not stop
         while not coord.should_stop():
 
@@ -291,8 +293,14 @@ class Agent(object):
             summary.value.add(tag='Reward', simple_value=float(episode_reward))
 
             # track whether or not the level was completed
-            is_level_completed = current_life > 0
-            summary.value.add(tag='Level_completed', simple_value=float(is_level_completed))
+            if len(rolling_completed_level) > 100:
+                rolling_completed_level.pop()
+            if current_life > 0:
+                rolling_completed_level.insert(0,1.0)
+            else:
+                rolling_completed_level.insert(0,0.0)
+
+            summary.value.add(tag='Level_completed', simple_value=float(np.sum(rolling_completed_level)/100))
 
             # track the distance mario reached
             summary.value.add(tag='Distance', simple_value=float(max_distance))
