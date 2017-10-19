@@ -4,14 +4,14 @@ from A3C_network import A3CNetwork
 import tensorflow as tf
 
 # where to periodically save the model
-SUMMARY_FOLDER = 'mario-pixel-models'
+SUMMARY_FOLDER = 'mario-pixel-models-restart'
 MODEL_PATH = './models/' + SUMMARY_FOLDER
 
 def main():
     """ the main function """
-    LEVEL_NAME = 'meta-SuperMarioBros-v0'
+    LEVEL_NAME = 'meta-SuperMarioBros-Tiles-v0'
     NUMBER_OF_AGENTS = 4
-    global_shape = (176,256,3)
+    global_shape = (13,16)
 
     tf.reset_default_graph()
 
@@ -45,7 +45,7 @@ def main():
     agent_threads = []
 
 
-    load_model = False
+    load_model = True
 
     # saver for saving model
     saver = tf.train.Saver(max_to_keep=3)

@@ -17,7 +17,7 @@ class A3CNetwork(object):
         # agent-specific scope / 'global' scope
         with tf.variable_scope(scope):
             # state input placeholder
-            state_maps = state_shape[2] if state_shape[2] else 1
+            state_maps = 1
             self.s = tf.placeholder(
                 tf.float32, 
                 shape=[None, state_shape[0], state_shape[1], state_maps],
@@ -28,18 +28,18 @@ class A3CNetwork(object):
             with tf.variable_scope('cnn'):
                 self.layer1_conv = self.__new_conv_layer(
                     self.s,
-                    input_channels_n=3,
-                    filter_size=8,
+                    input_channels_n=1,
+                    filter_size=2,
                     feature_maps_n=16,
-                    stride=4,
+                    stride=1,
                     name='conv1'
                 )
                 self.layer2_conv = self.__new_conv_layer(
                     self.layer1_conv,
                     input_channels_n=16,
-                    filter_size=4,
+                    filter_size=2,
                     feature_maps_n=32,
-                    stride=2,
+                    stride=1,
                     name='conv2'
                 )
 
@@ -212,7 +212,7 @@ class A3CNetwork(object):
             input=inputs, 
             filter=weights, 
             strides=[1,stride,stride,1], 
-            padding='VALID',
+            padding='SAME',
             name=name
         )
                                                         
