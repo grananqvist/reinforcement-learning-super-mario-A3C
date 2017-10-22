@@ -1,3 +1,8 @@
+"""
+This script can be run to manually play the game.
+Alternatively, remove the human wrapper and uncomment line 36
+to perform a random walk
+"""
 from multiprocessing import Lock
 import gym
 
@@ -19,29 +24,15 @@ def SetPlayingMode(target_mode):
 
     return SetPlayingModeWrapper
 
+
 env = gym.make('meta-SuperMarioBros-v0')
 wrapper = SetPlayingMode('human')
 env = wrapper(env)
 #env.configure(lock=Lock())
 observation = env.reset()
-
 env.render()
 
-action = env.action_space.sample() # your agent here (this takes random actions)
-action = [0, 0, 0, 1, 0, 0]
-observation, reward, done, info = env.step(action)
-
-print(env.action_space)
-print(env.observation_space)
-print(env.observation_space.high)
-print(env.observation_space.low)
-print('from step')
-
-print(action)
-print(observation)
-print(reward)
-print(done)
-print(info)
+action = env.action_space.sample() 
 
 for _ in range(100000000):
         env.render()

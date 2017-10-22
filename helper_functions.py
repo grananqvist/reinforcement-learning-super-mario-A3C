@@ -6,7 +6,12 @@ def preprocess_state(state):
     return np.multiply(state, 1.0/255)
 
 def discrete_to_multi_action(action_discrete):
-    """ sfdsdfs """
+    """ map dicrete action to multidiscrete vector of NES buttons
+    
+    This is used to be able to use a simple softmax output of the policy network
+    whle being able to perform multiple actions at once, 
+    for example jump and move right at the same time
+    """
 
     mapping = {
         0: [0, 0, 0, 0, 0, 0],  # NOOP

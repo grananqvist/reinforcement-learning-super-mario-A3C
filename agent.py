@@ -17,8 +17,6 @@ MAX_DISTANCE_LEVEL = [
 # discount factor
 GAMMA = 0.99
 
-EPSILON = 0.02
-
 # number of iterations to store in buffers before updating global net
 GLOBAL_UPDATE_INTERVAL = 30
 
@@ -27,6 +25,10 @@ SUMMARY_FOLDER = 'mario-pixel-models-time-pen'
 MODEL_PATH = './models/' + SUMMARY_FOLDER
 
 class Agent(object):
+    """ The agent class
+
+    Is responsible for the learning procedure.
+    """
 
     def __init__(self, level_name, global_shape, agent_name, episode_count, global_writer):
 
@@ -47,9 +49,15 @@ class Agent(object):
 
         # create super mario environment
         self.env = gym.make(level_name)
+
+        # lock is good to have, but not supported by latest gym version
         #self.env.configure(lock=Lock())
-        self.state_n = global_shape #self.env.observation_space.shape
-        self.action_n = 14 #self.env.action_space.shape
+
+        # state shape
+        self.state_n = global_shape 
+
+        # number of actions
+        self.action_n = 14 
 
         # initiate A3C network
         self.a3cnet = A3CNetwork(self.state_n, self.action_n, agent_name)
@@ -67,10 +75,11 @@ class Agent(object):
         # Unlock all levels
         #for i,l in enumerate(self.env.locked_levels):
             #self.env.locked_levels[i] = False
+
         current_level = 0
 
+        # used to calculate probability of completing level
         rolling_completed_level = []
-
 
         # episode loop. Continue playing the game while should not stop
         while not coord.should_stop():
@@ -78,16 +87,18 @@ class Agent(object):
             # reset buffers
             action_buffer, state_buffer, reward_buffer, value_buffer = [], [], [], []
 
-            self.env.change_level(new_level=0)  # Change level
-
             # reset env by changing level. env.reset doesn't work for super mario
-            # also change to the latest unlocked level
+            self.env.change_level(new_level=0)  # Change level, currently loops level 1
+
+            # sample a random action to fetch a starting state
             s, _, done, info = self.env.step(self.env.action_space.sample()) 
 
-
+            # change to the latest unlocked level
             #latest_level = np.argmax(info['locked_levels']) - 1
             #if info['level'] < latest_level or restart:
                 #self.env.change_level(new_level=latest_level)
+
+            # normalize and crop the input image
             s = preprocess_state(s)
 
             prev_score = 0
@@ -96,14 +107,17 @@ class Agent(object):
             # reset LSTM memory
             lstm_c = np.zeros((1, self.a3cnet.lstm_cell.state_size.c))
             lstm_h = np.zeros((1, self.a3cnet.lstm_cell.state_size.h))
+
             # reset LSTM memory for whole batch
             self.batch_lstm_c = lstm_c
             self.batch_lstm_h = lstm_h
 
             # keep track of total reward for entire episode
-            total_reward = 0 #TODO only for debug
+            total_reward = 0 
             episode_reward = 0
             max_distance = 0
+
+            # keep track of number of steps elapsed without mario making any progess
             steps_since_progress = 0
 
             # state step loop
@@ -111,6 +125,7 @@ class Agent(object):
                 
                 self.env.render()
 
+                # estimate policy and value given the state
                 policy, value, (lstm_c, lstm_h) = sess.run([
                     self.a3cnet.actor_out,
                     self.a3cnet.critic_out,
@@ -123,26 +138,16 @@ class Agent(object):
                 
                 # sample action from the policy distribution at the
                 # output of the Actor network
-                #action = np.zeros(policy.shape[1], dtype=int)
-                #action = np.array([np.random.choice(2, p=[1-policy[0,i], policy[0,i]]) 
-                #    for i in range(policy.shape[1])])
-                #action[np.random.choice(range(policy.shape[1]), p=policy[0])] = 1
-
-                """
-                if np.random.uniform() < EPSILON:
-                    action_discrete = np.random.choice(range(policy.shape[1]))
-                else:
-                """
                 action_discrete = np.random.choice(range(policy.shape[1]), p=policy[0])
-
                 action_discrete_onehot = np.zeros(self.action_n, dtype=int)
                 action_discrete_onehot[action_discrete] = 1
+
+                # convert to multidiscrete actions demanded by the environment as input
                 action = discrete_to_multi_action(action_discrete)
 
-                # take a step in env with action
+                # take a step in env with chosen action
                 s_, r, done, info = self.env.step(action)
                 s_ = preprocess_state(s_)
-
 
                 # save variables for summary later
                 if 'life' in info:
@@ -152,18 +157,20 @@ class Agent(object):
 
                 """ reward modifications """
 
-                r /= 2
+                r /= 2 # divide the "move right" reward by half
 
                 # -1 reward for mario dying
                 if done and 'life' in info and info['life'] == 0:
                     r -= 1
 
 
-                # maximum reward for gaining any score is currently clipped at 1
+                # add reward for gaining score
+                # maximum reward for gaining any score is currently clipped at 0.5
                 if 'score' in info:
                     r += np.min([0.5, 0.001 * (info['score'] - prev_score)])
                     prev_score = info['score']
 
+                # calculate number of steps since mario did any progress in moving right
                 if 'distance' in info: 
                     if max_distance < info['distance']:
                         max_distance = info['distance']
@@ -171,7 +178,7 @@ class Agent(object):
                     else:
                         steps_since_progress += 1
                     
-
+                # reward decay for each second elapsed
                 if 'time' in info:
                     r -= 0.01 * (prev_time - info['time'])
 
@@ -182,8 +189,6 @@ class Agent(object):
                     done = True
                     current_life = 0
                     r -= 1
-                    #r -= 50
-                
 
                 # observe results and store in buffers
                 state_buffer.append(s)
@@ -198,15 +203,10 @@ class Agent(object):
                 if done and 'distance' in info and info['distance'] > 0.97*MAX_DISTANCE_LEVEL[info['level']]:
                     current_level += 1
 
+                # update global network on a specified interval or when episode is done
                 if step_counter % GLOBAL_UPDATE_INTERVAL == 0 or done:
 
-                    """ debug """
-                    #print(str(self.name) + ' reward for batch: ' + str(total_reward))
                     total_reward = 0
-
-                    #print('recent value: %f' % value)
-                    #print('recent policy: ' + str(policy))
-                    """ debug """
 
                     if done:
                         value_s = 0
@@ -220,9 +220,6 @@ class Agent(object):
                             }
                         )[0][0]
 
-                    # update global net
-                    #print('buffer size: ' + str(len(state_buffer)))
-
                     # calculate discounted rewards all the way to current state s
                     # for each state in state buffer
                     discounted_rewards_buffer = []
@@ -232,7 +229,7 @@ class Agent(object):
                         discounted_rewards_buffer.insert(0, discounted_reward)
                     discounted_rewards_buffer = np.array(discounted_rewards_buffer).reshape(-1,1)
                     
-                    # calculate advantages
+                    # calculate the generalized advantage estimation (GAE)
                     discounted_advantages_buffer = []
                     advantages_buffer = np.array(reward_buffer) + \
                             GAMMA * np.array( value_buffer[1:] + [value_s] ) - \
@@ -245,7 +242,7 @@ class Agent(object):
                     discounted_advantages_buffer = np.array(discounted_advantages_buffer).reshape(-1,1)
 
 
-
+                    # perform global net update. save new lstm states for next batch
                     (self.batch_lstm_c, self.batch_lstm_h), summary, _ = sess.run(
                         [
                             self.a3cnet.layer4_lstm_state, 
@@ -268,12 +265,10 @@ class Agent(object):
                     # reset buffers
                     state_buffer, action_buffer, reward_buffer, value_buffer = [], [], [], []
 
-
                     self.writer.add_summary(summary, step_counter)
 
                 s = s_
                 step_counter += 1
-
 
 
             # increase the episode counter
@@ -299,6 +294,8 @@ class Agent(object):
                 rolling_completed_level.insert(0,1.0)
             else:
                 rolling_completed_level.insert(0,0.0)
+
+            # add the rolling mean of probability of completing level to summary
             summary.value.add(tag='Level_completed', simple_value=float(np.sum(rolling_completed_level)/100))
 
             # track the distance mario reached
@@ -314,20 +311,3 @@ class Agent(object):
             if global_ep % 4 == 0:
                 saver.save(sess, '%s/model-%i.ckpt' % (MODEL_PATH, global_ep))
                 print('saved model at episode %i' % global_ep)
-
-
-if __name__ == '__main__':
-    episode_count = tf.Variable(
-        0, 
-        dtype=tf.int32,
-        name='episode_count',
-        trainable=False
-    )
-    globalz = A3CNetwork((224,256,3), 6, 'global')
-    agent = Agent('meta-SuperMarioBros-v0', 'agent_0', episode_count)
-
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        coord = tf.train.Coordinator()
-
-        agent.train(sess, coord)
