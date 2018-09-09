@@ -1,15 +1,14 @@
 # reinforcement-learning-super-mario-A3C
-## Under construction
-Learning to play supermario using A3C algorithm
+Learning to play supermario using A3C Reinforcement Learning algorithm  
+Original A3C paper: https://arxiv.org/pdf/1602.01783.pdf  
 
-Todo:
-- [X] Implement Tensorboard
-- [X] Save model
-- [X] crop image
-- [ ] Train on Pong
-- [ ] Train on tiles
-- [X] Reward engineering
-- [X] Timeout restart
+## How to run
+Simply edit settings in `main.py` and `agent.py`, then run  
+```
+python main.py
+```
+
+## Tip
 
 Things to change in the super-mario-bros.lua file to send slightly less data through the pipe:
 - Row 48: skip\_frames=6
